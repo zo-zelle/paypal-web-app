@@ -1,46 +1,44 @@
 node{
   def mavenHome = tool name: 'maven3.8.5'
-  stage('1.Clone'){
-    git branch: 'master', credentialsId: 'Git_Credentials', url: 'https://github.com/zo-zelle/paypal-web-app'
+  stage('1Clone'){
+    git branch: 'master', credentialsId: 'GitHub-Credentials', url: 'https://github.com/zo-zelle/paypal-web-app'
   }
-  stage('2.MavenBuild'){
+  stage('2MavenBuild'){
     sh "${mavenHome}/bin/mvn clean package"
    // bat 'mvn package'
   }
-      stage('3.CodeQuality'){
+    stage('3CodeQuality'){
     sh "${mavenHome}/bin/mvn sonar:sonar"
   }
-    stage('4.UploadArtifacts'){
+    stage('4UploadArtifacts'){
     sh "${mavenHome}/bin/mvn deploy"
   }
-      stage('6.Deploy2dev'){
+      stage('5.Deploy2dev'){
       deploy adapters: [tomcat9(credentialsId: 'tomcat-credentials-ebaybtszo', path: '', url: 'http://54.237.250.195:7771/')], contextPath: null, war: 'target/*war'
-}
-      stage('5.Deploy2uat'){
-        sshagent(['agent1credential']) {
-       sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@54.237.250.195:/opt/tomcat9/webapps/uat.war"
-        
-}
-      
+  }
+      stage('6.Deploy2uat'){
+      sshagent(['agentcredentials']) {
+      "scp -i key.pem target/*war ec2-user@172.31.82.233:/opt/tomcat9/webapps/uat.war"
+      //sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@54.237.250.195:/opt/tomcat9/webapps/uat.war"
+  } 
       }
-          stage('7.approval'){
+   stage('7.approval'){
       timeout(time:8, unit:'HOURS'){
         input message: 'Please approve deployment to Production'
       }
      }
    stage('8.Deploy2prod'){
-        sshagent(['agent1credential']) {
-        sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@54.237.250.195:/opt/tomcat9/webapps/app.war"
+        sshagent(['agentcredentials']) {
+        "scp -i key.pem target/*.war ec2-user@172.31.82.233:/opt/tomcat9/webapps/app.war"
         
-}
-      
-      }
-      stage('9.EmailAlerts'){
+}      
+      }  
+   stage('9.EmailAlerts'){
     emailext body: '''Hi
 
 Build status for boa app.
 
 Regards,
 Landmark Technologies''', recipientProviders: [developers(), requestor()], subject: 'Project status', to: 'boa@gmail.com'
-   }
+   }   
 }
